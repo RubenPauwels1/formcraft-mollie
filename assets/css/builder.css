@@ -1,0 +1,39 @@
+#mollie-options > label,
+#mollie-options > div
+{
+	padding: 7px 10px;
+	width: 100%;
+	font-size: 12px;
+}
+#mollie-options label.button
+{
+	font-size: 11px;
+}
+#mollie-options
+{
+	padding-bottom: 12px;
+}
+#mollie-options > label span,
+#mollie-options > div span
+{
+	width: 130px;
+	display: inline-block;
+	padding: 2px 0px 2px 5px;
+}
+#mollie-options label input
+{
+	width: 218px;
+}
+
+#paywithmollie{
+    background-color: #48e;
+	color: #fff;
+	padding: 15px;
+	border: 1px solid #ddd;
+}
+
+#infoicon{
+	font-family:  FontAwesome;
+	margin-right: 5px;
+	font-style: normal;
+}
