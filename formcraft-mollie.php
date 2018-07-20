@@ -5,7 +5,7 @@
 	Description: Mollie Add-On for FormCraft
 	Author: Ruben Pauwels, Flux
 	Author URI: https://flux.be
-	Version: 0.4.5
+	Version: 0.5.0
 	Text Domain: formcraft-mollie
 */
 
@@ -50,6 +50,9 @@ function formcraft_mollie_content()
 				<div class="fc-spinner small">
 					<div class="bounce1"></div><div class="bounce2"></div><div class="bounce3"></div>
 				</div>
+			</div>
+			<div style='text-align: center; border-bottom: 1px solid #ddd; padding: 14px 0 14px 0; margin-bottom: 14px;'>
+				<?php _e('Only one set of API-keys accepted per Wordpress installation.'); ?>
 			</div>
 			<div id='mollie-options'>
 				<label>
@@ -208,7 +211,7 @@ function formcraft_mollie_content()
 					'amount'      => $final_amount,
 					'description' => 'ESCRH',
 					// 'redirectUrl' => home_url().'/experimenten?registered&user-email=' . $fields['user_email'],
-					'redirectUrl' => home_url() . '?paymentprocessed',
+					'redirectUrl' => $content['URL'] . '?paymentprocessed',
 					'webhookUrl'  => plugins_url( 'assets/php/webhook.php', __FILE__ ),
 					'metadata'    => array(
 						'user_email' => $final_mollie_email,
