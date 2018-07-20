@@ -33,7 +33,6 @@ $mollie = new Mollie_API_Client;
 $mollie->setApiKey($apikey);
 
 $payment = $mollie->payments->get($_POST["id"]);
-// $payment = $mollie->payments->get('tr_824ASBHvJk');
 
 $status = $payment->status;
 $amount = $payment->amount;
