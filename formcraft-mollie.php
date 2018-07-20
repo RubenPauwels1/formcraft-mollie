@@ -5,7 +5,7 @@
 	Description: Mollie Add-On for FormCraft
 	Author: Ruben Pauwels, Flux
 	Author URI: https://flux.be
-	Version: 0.5.0
+	Version: 0.5.1
 	Text Domain: formcraft-mollie
 */
 
@@ -42,8 +42,7 @@ function formcraft_mollie_builder_scripts()
 			);	
 	}
 
-function formcraft_mollie_content()
-	{
+function formcraft_mollie_content(){
 		?>
 		<div id='mollie-cover'>
 			<div class='loader'>
@@ -72,183 +71,196 @@ function formcraft_mollie_content()
 			</div>
 		</div>
 		<?php
-	}
+}
 
 	add_action('formcraft_form_scripts', 'formcraft_mollie_form_scripts');
 
-	function formcraft_mollie_form_scripts()
+function formcraft_mollie_form_scripts(){
+	wp_enqueue_style('fcmollie-form-css', plugins_url( 'assets/css/form-mollie.css', __FILE__ ));	
+	wp_enqueue_script('fcmollie-form-js', plugins_url( 'assets/js/form-mollie_front.js', __FILE__ ), array('jquery'));
+	wp_localize_script( 'fcs-form-js', 'FCS',
+		array(
+		'ajaxurl' => admin_url( 'admin-ajax.php' )
+		)
+		);
+}	
+
+add_action('formcraft_after_save', 'formcraft_mollie_trigger', 10, 2);
+
+function formcraft_mollie_trigger($content, $meta){
+	global $fc_final_response;
+
+	$mollie_data = formcraft_get_addon_data('Mollie', $content['Form ID']);
+
+
+	if ( !isset($mollie_data['mode']) ) {
+		$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to select a mode]";
+		echo json_encode($fc_final_response);
+		die();
+	}
+	if ( $mollie_data['mode']=='live' && empty($mollie_data['live_publishable_key']) ) {
+		$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to fill in live key]";
+		echo json_encode($fc_final_response);
+		die();
+	}
+	if ( $mollie_data['mode']=='test' && empty($mollie_data['test_secret_key']) ){
+		$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to fill in test key]";
+		echo json_encode($fc_final_response);
+		die();
+	}
+
+	foreach ($meta['fields'] as $key => $field) {
+		if ($field['type']=='Mollie')
+		{
+			$mollie_field = $field;
+		}
+	}
+
+	//GET EMAIL:
+	$mollie_email = empty($mollie_field['elementDefaults']['mollie_email']) ? false : $mollie_field['elementDefaults']['mollie_email'];
+	$final_mollie_email = null;
+	if ( filter_var($mollie_email, FILTER_VALIDATE_EMAIL) )
 	{
-		wp_enqueue_style('fcmollie-form-css', plugins_url( 'assets/css/form-mollie.css', __FILE__ ));	
-		wp_enqueue_script('fcmollie-form-js', plugins_url( 'assets/js/form-mollie_front.js', __FILE__ ), array('jquery'));
-        wp_localize_script( 'fcs-form-js', 'FCS',
-          array(
-            'ajaxurl' => admin_url( 'admin-ajax.php' )
-            )
-          );
-	}	
-
-	add_action('formcraft_after_save', 'formcraft_mollie_trigger', 10, 2);
-
-	function formcraft_mollie_trigger($content, $meta){
-		global $fc_final_response;
-
-		$mollie_data = formcraft_get_addon_data('Mollie', $content['Form ID']);
-
-
-		if ( !isset($mollie_data['mode']) ) {
-			$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to select a mode]";
-			echo json_encode($fc_final_response);
-			die();
+		$final_mollie_email = $mollie_email;
+	}
+	else
+	{
+		$mollie_email = preg_replace("/[^a-zA-Z0-9]+/", '', $mollie_email);
+		if ( ( isset($_POST[$mollie_email]) || isset($_POST[$mollie_email.'[]']) ) && filter_var($_POST[$mollie_email], FILTER_VALIDATE_EMAIL) )
+		{
+			$final_mollie_email = isset($_POST[$mollie_email]) ? $_POST[$mollie_email] : $_POST[$mollie_email.'[]'];
 		}
-		if ( $mollie_data['mode']=='live' && empty($mollie_data['live_publishable_key']) ) {
-			$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to fill in live key]";
-			echo json_encode($fc_final_response);
-			die();
-		}
-		if ( $mollie_data['mode']=='test' && empty($mollie_data['test_secret_key']) ){
-			$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to fill in test key]";
-			echo json_encode($fc_final_response);
-			die();
-		}
+	}
 
-		foreach ($meta['fields'] as $key => $field) {
-			if ($field['type']=='Mollie')
+	//GET FIRST NAME:
+	$mollie_first_name = empty($mollie_field['elementDefaults']['mollie_firstname']) ? false : $mollie_field['elementDefaults']['mollie_firstname'];
+	
+	$mollie_first_name = preg_replace("/[^a-zA-Z0-9]+/", '', $mollie_first_name);
+	if ( ( isset($_POST[$mollie_first_name]) ) )
+	{
+		$final_mollie_first_name = $_POST[$mollie_first_name][0];
+	}
+
+	//GET LAST NAME:
+	$mollie_last_name = empty($mollie_field['elementDefaults']['mollie_lastname']) ? false : $mollie_field['elementDefaults']['mollie_lastname'];
+
+	$mollie_last_name = preg_replace("/[^a-zA-Z0-9]+/", '', $mollie_last_name);
+	if ( ( isset($_POST[$mollie_last_name]) ) )
+	{
+		$final_mollie_last_name = $_POST[$mollie_last_name][0];
+	}
+
+	//GET AMOUNT:
+	$currency = 'EUR';			
+	$mollie_field['elementDefaults']['mollie_amount'] = strtolower($mollie_field['elementDefaults']['mollie_amount']);
+	$clean_amount = preg_replace("/[^a-zA-Z0-9.*()\-+\/]+/", '', $mollie_field['elementDefaults']['mollie_amount']);
+	if (empty($clean_amount)) {
+		echo json_encode(array('failed'=>'Invalid / empty amount is not accepted'));
+		die();
+	}
+	$amount_fields = preg_split("/[*()\-+\/]/", $clean_amount);
+	arsort($amount_fields, SORT_NUMERIC);
+	if ( is_array($amount_fields) && count($amount_fields)>0 )
+	{
+		foreach ($amount_fields as $key => $value) {
+			if ( !is_numeric($value) )
 			{
-				$mollie_field = $field;
-			}
-		}
-
-		//GET EMAIL:
-		$mollie_email = empty($mollie_field['elementDefaults']['mollie_email']) ? false : $mollie_field['elementDefaults']['mollie_email'];
-		$final_mollie_email = null;
-		if ( filter_var($mollie_email, FILTER_VALIDATE_EMAIL) )
-		{
-			$final_mollie_email = $mollie_email;
-		}
-		else
-		{
-			$mollie_email = preg_replace("/[^a-zA-Z0-9]+/", '', $mollie_email);
-			if ( ( isset($_POST[$mollie_email]) || isset($_POST[$mollie_email.'[]']) ) && filter_var($_POST[$mollie_email], FILTER_VALIDATE_EMAIL) )
-			{
-				$final_mollie_email = isset($_POST[$mollie_email]) ? $_POST[$mollie_email] : $_POST[$mollie_email.'[]'];
-			}
-		}
-
-		//GET FIRST NAME:
-		$mollie_first_name = empty($mollie_field['elementDefaults']['mollie_firstname']) ? false : $mollie_field['elementDefaults']['mollie_firstname'];
-		
-		$mollie_first_name = preg_replace("/[^a-zA-Z0-9]+/", '', $mollie_first_name);
-		if ( ( isset($_POST[$mollie_first_name]) ) )
-		{
-			$final_mollie_first_name = $_POST[$mollie_first_name][0];
-		}
-
-		//GET LAST NAME:
-		$mollie_last_name = empty($mollie_field['elementDefaults']['mollie_lastname']) ? false : $mollie_field['elementDefaults']['mollie_lastname'];
-
-		$mollie_last_name = preg_replace("/[^a-zA-Z0-9]+/", '', $mollie_last_name);
-		if ( ( isset($_POST[$mollie_last_name]) ) )
-		{
-			$final_mollie_last_name = $_POST[$mollie_last_name][0];
-		}
-
-		//GET AMOUNT:
-		$currency = 'EUR';			
-		$mollie_field['elementDefaults']['mollie_amount'] = strtolower($mollie_field['elementDefaults']['mollie_amount']);
-		$clean_amount = preg_replace("/[^a-zA-Z0-9.*()\-+\/]+/", '', $mollie_field['elementDefaults']['mollie_amount']);
-		if (empty($clean_amount)) {
-			echo json_encode(array('failed'=>'Invalid / empty amount is not accepted'));
-			die();
-		}
-		$amount_fields = preg_split("/[*()\-+\/]/", $clean_amount);
-		arsort($amount_fields, SORT_NUMERIC);
-		if ( is_array($amount_fields) && count($amount_fields)>0 )
-		{
-			foreach ($amount_fields as $key => $value) {
-				if ( !is_numeric($value) )
+				$this_field_value = 0;
+				if ( isset($_POST[$value]) )
 				{
-					$this_field_value = 0;
-					if ( isset($_POST[$value]) )
+					if ( is_array($_POST[$value]) )
 					{
-						if ( is_array($_POST[$value]) )
-						{
-							foreach ($_POST[$value] as $key2 => $value2) {
-								$this_field_value = is_numeric($value2) ? $this_field_value + $value2 : $this_field_value;
-							}
-						}
-						else
-						{
-							$this_field_value = is_numeric($_POST[$value]) ? $this_field_value + $_POST[$value] : $this_field_value;
+						foreach ($_POST[$value] as $key2 => $value2) {
+							$this_field_value = is_numeric($value2) ? $this_field_value + $value2 : $this_field_value;
 						}
 					}
-					$clean_amount = str_replace($value, $this_field_value, $clean_amount);
+					else
+					{
+						$this_field_value = is_numeric($_POST[$value]) ? $this_field_value + $_POST[$value] : $this_field_value;
+					}
 				}
+				$clean_amount = str_replace($value, $this_field_value, $clean_amount);
 			}
 		}
-		/* Keep it safe! */
-		$clean_amount = str_replace('--', '+', preg_replace("/[^0-9.*()\-+\/]+/", '', $clean_amount));
-		eval('$final_amount = ('.$clean_amount.');');
-		$final_amount = floor( $final_amount*100 ) / 100;
-		//format to Mollie format: 12.34
-		$final_amount = number_format($final_amount, 2, '.', ',');
-
-		//GET THE APIKEY
-		$secret_key = $mollie_data['mode']=='live' ? $mollie_data['live_secret_key'] : $mollie_data['test_secret_key'];
-		
-		//GET NUMBER OF SUBMISSIONS + 1
-		global $wpdb;
-		$latest_sub =  $wpdb->get_var( "SELECT MAX(id) FROM {$fc_submissions_table}" );
-		$sub_id = intval($latest_sub) + 1;
-		
-		
-		$mollie = new Mollie_API_Client;
-		$mollie->setApiKey($secret_key);
-
-		try
-		{
-			$payment = $mollie->payments->create(
-				array(
-					'amount'      => $final_amount,
-					'description' => 'ESCRH',
-					// 'redirectUrl' => home_url().'/experimenten?registered&user-email=' . $fields['user_email'],
-					'redirectUrl' => $content['URL'] . '?paymentprocessed',
-					'webhookUrl'  => plugins_url( 'assets/php/webhook.php', __FILE__ ),
-					'metadata'    => array(
-						'user_email' => $final_mollie_email,
-						"first_name" => $final_mollie_first_name, 
-						"last_name" => $final_mollie_last_name,
-						'id' => $content['Form ID'] . '-' . time(),
-						'form_id' => $content['Form ID'],
-						'form_name' => $content['Form Name'],
-						'date' => $content['Date'],
-						'time' => $content['Time'],
-						'ip' => $content['IP'],
-						'submission_id' => $fc_final_response['submission_id']
-					)
-				)
-			);
-			$paymentURL = $payment->links->paymentUrl;
-			// echo json_encode(array('paymenturl'=>$paymentURL));
-
-			$fc_final_response['paymentURL'] = $paymentURL;
-			echo json_encode($fc_final_response);
-
-			die();
-
-			//REDIRECT WITH JS
-
-
-			/*
-			* Send the customer off to complete the payment.
-			* This request should always be a GET, thus we enforce 303 http response code
-			*/
-			// header("Location: " . $paymentURL, true, 303);
-			// exit;
-		}
-		catch (Mollie_API_Exception $e)
-		{
-			echo "API call failed: " . htmlspecialchars($e->getMessage());
-			echo " on field " . htmlspecialchars($e->getField());
-		}
-
 	}
+	/* Keep it safe! */
+	$clean_amount = str_replace('--', '+', preg_replace("/[^0-9.*()\-+\/]+/", '', $clean_amount));
+	eval('$final_amount = ('.$clean_amount.');');
+	$final_amount = floor( $final_amount*100 ) / 100;
+	//format to Mollie format: 12.34
+	$final_amount = number_format($final_amount, 2, '.', ',');
+
+	//GET THE APIKEY
+	$secret_key = $mollie_data['mode']=='live' ? $mollie_data['live_secret_key'] : $mollie_data['test_secret_key'];
+	
+	//GET NUMBER OF SUBMISSIONS + 1
+	global $wpdb;
+	$latest_sub =  $wpdb->get_var( "SELECT MAX(id) FROM {$fc_submissions_table}" );
+	$sub_id = intval($latest_sub) + 1;
+	
+	
+	$mollie = new Mollie_API_Client;
+	$mollie->setApiKey($secret_key);
+
+	try
+	{
+		$payment = $mollie->payments->create(
+			array(
+				'amount'      => $final_amount,
+				'description' => 'ESCRH',
+				// 'redirectUrl' => home_url().'/experimenten?registered&user-email=' . $fields['user_email'],
+				'redirectUrl' => $content['URL'] . '?paymentprocessed',
+				'webhookUrl'  => plugins_url( 'assets/php/webhook.php', __FILE__ ),
+				'metadata'    => array(
+					'user_email' => $final_mollie_email,
+					"first_name" => $final_mollie_first_name, 
+					"last_name" => $final_mollie_last_name,
+					'id' => $content['Form ID'] . '-' . time(),
+					'form_id' => $content['Form ID'],
+					'form_name' => $content['Form Name'],
+					'date' => $content['Date'],
+					'time' => $content['Time'],
+					'ip' => $content['IP'],
+					'submission_id' => $fc_final_response['submission_id']
+				)
+			)
+		);
+		$paymentURL = $payment->links->paymentUrl;
+		// echo json_encode(array('paymenturl'=>$paymentURL));
+
+		$fc_final_response['paymentURL'] = $paymentURL;
+		echo json_encode($fc_final_response);
+
+		die();
+
+		//REDIRECT WITH JS
+
+
+		/*
+		* Send the customer off to complete the payment.
+		* This request should always be a GET, thus we enforce 303 http response code
+		*/
+		// header("Location: " . $paymentURL, true, 303);
+		// exit;
+	}
+	catch (Mollie_API_Exception $e)
+	{
+		echo "API call failed: " . htmlspecialchars($e->getMessage());
+		echo " on field " . htmlspecialchars($e->getField());
+	}
+
+}
+
+
+//Show notice on payment done
+add_action( 'wp_loaded', 'show_payment_notice');
+
+function show_payment_notice() {
+    if ( !is_admin() && isset($_GET['paymentprocessed'])) { 
+		echo '<div class="infobox">';
+		echo '<span class="closebtn" onclick="this.parentElement.style.display=\'none\';">×</span>';
+		echo '<strong>Thank you!</strong>';
+	   	echo '<p>Your payment is being processed at this moment. We will contact you shortly if anything has gone wrong during the payment process. You may close this page.</p>';
+		echo '</div>';
+    }
+}

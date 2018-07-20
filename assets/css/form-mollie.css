@@ -1,3 +1,5 @@
+/* FORM */
+
 #paywithmollie{
     background-color: #48e;
 	color: #fff;
@@ -9,4 +11,53 @@
 	font-family:  FontAwesome;
 	margin-right: 5px;
 	font-style: normal;
+}
+
+/* INFO BOX */
+
+.infobox{
+    position: fixed;
+    z-index: 999999999 !important;
+    bottom: 2vh;
+    right: 1vw;
+    max-width: 20%;
+    background-color: rgba(33, 150, 243, 0.8);
+    padding: 20px;
+    color: #fff;
+}
+
+.infobox strong{
+    font-size: 20px;
+}
+
+.infobox p{
+    color: #fefefe;
+}
+
+.closebtn {
+    margin-left: 15px;
+    color: white;
+    font-weight: bold;
+    float: right;
+    font-size: 22px;
+    line-height: 20px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.closebtn:hover {
+    color: black;
+}
+
+@media screen and (max-width: 768px){
+    .infobox{
+        position: fixed;
+        z-index: 999999999 !important;
+        bottom: 0;
+        right: 0;
+        max-width: 100%;
+        background-color: rgba(33, 150, 243, 0.8);
+        padding: 20px;
+        color: #fff;
+    }
 }
