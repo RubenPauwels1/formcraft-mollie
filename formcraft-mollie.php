@@ -5,7 +5,7 @@
 	Description: Mollie Add-On for FormCraft
 	Author: Ruben Pauwels, Flux
 	Author URI: https://flux.be
-	Version: 0.4.2
+	Version: 0.4.5
 	Text Domain: formcraft-mollie
 */
 

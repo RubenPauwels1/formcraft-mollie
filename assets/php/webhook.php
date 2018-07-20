@@ -14,13 +14,23 @@ $fc_submissions_table = $wpdb->prefix . "formcraft_3_submissions";
 $fc_views_table = $wpdb->prefix . "formcraft_3_views";
 $fc_files_table = $wpdb->prefix . "formcraft_3_files";
 
-//-----------------------------------------------------
-//TODO: GET API KEY FROM DB: SELECT -> foreach
-//      if mode = test -> API KEY -> ...
-//-----------------------------------------------------
+
+//GET API KEY
+$addons = $wpdb->get_results( "SELECT addons FROM {$fc_forms_table}" );
+
+foreach($addons as $addon){
+    $addons_arr = json_decode(stripslashes($addon->addons));
+    if($addons_arr->Mollie){
+        $mollie_data = $addons_arr->Mollie;
+        break;
+    }
+}
+
+$mollie_data->mode == 'test' ? $apikey = $mollie_data->test_secret_key : $apikey = $mollie_data->live_publishable_key;
+
 
 $mollie = new Mollie_API_Client;
-$mollie->setApiKey('<MY-API-KEY>');
+$mollie->setApiKey($apikey);
 
 $payment = $mollie->payments->get($_POST["id"]);
 // $payment = $mollie->payments->get('tr_824ASBHvJk');
@@ -47,3 +57,6 @@ $content = json_encode($content);
 
 //UPDATE TO NEW DATA
 $wpdb->query("UPDATE {$fc_submissions_table} SET content='" . $content . "' WHERE id='" . $payment->metadata->submission_id . "'");
+
+//DO ACTION
+do_action( 'formcraft_after_mollie_payment',  array($payment) );
