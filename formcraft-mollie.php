@@ -5,7 +5,7 @@
 	Description: Mollie Add-On for FormCraft
 	Author: Ruben Pauwels, Flux
 	Author URI: https://flux.be
-	Version: 0.5.1
+	Version: 0.5.2
 	Text Domain: formcraft-mollie
 */
 
@@ -40,6 +40,9 @@ function formcraft_mollie_builder_scripts()
 				'defaultData' => $defaultData,
 				)
 			);	
+		wp_localize_script( 'fcmollie-addon-js', 'objectL10n', array(
+			'infotext' => esc_html__( 'You will be redirected to the payment page after submitting this form.', 'formcraft' ),
+		) );
 	}
 
 function formcraft_mollie_content(){
@@ -78,11 +81,11 @@ function formcraft_mollie_content(){
 function formcraft_mollie_form_scripts(){
 	wp_enqueue_style('fcmollie-form-css', plugins_url( 'assets/css/form-mollie.css', __FILE__ ));	
 	wp_enqueue_script('fcmollie-form-js', plugins_url( 'assets/js/form-mollie_front.js', __FILE__ ), array('jquery'));
-	wp_localize_script( 'fcs-form-js', 'FCS',
-		array(
-		'ajaxurl' => admin_url( 'admin-ajax.php' )
-		)
-		);
+	// wp_localize_script( 'fcs-form-js', 'FCS',
+	// 	array(
+	// 	'ajaxurl' => admin_url( 'admin-ajax.php' )
+	// 	)
+	// 	);
 }	
 
 add_action('formcraft_after_save', 'formcraft_mollie_trigger', 10, 2);
@@ -94,17 +97,17 @@ function formcraft_mollie_trigger($content, $meta){
 
 
 	if ( !isset($mollie_data['mode']) ) {
-		$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to select a mode]";
+		$fc_final_response['failed'] = __('Sorry, something went wrong [Admin has forgotten to select a mode]');
 		echo json_encode($fc_final_response);
 		die();
 	}
 	if ( $mollie_data['mode']=='live' && empty($mollie_data['live_publishable_key']) ) {
-		$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to fill in live key]";
+		$fc_final_response['failed'] = __('Sorry, something went wrong [Admin has forgotten to fill in live key]','formcraft');
 		echo json_encode($fc_final_response);
 		die();
 	}
 	if ( $mollie_data['mode']=='test' && empty($mollie_data['test_secret_key']) ){
-		$fc_final_response['failed'] = "Sorry, something went wrong [Admin has forgotten to fill in test key]";
+		$fc_final_response['failed'] = __('Sorry, something went wrong [Admin has forgotten to fill in test key]','formcraft');
 		echo json_encode($fc_final_response);
 		die();
 	}
@@ -155,7 +158,7 @@ function formcraft_mollie_trigger($content, $meta){
 	$mollie_field['elementDefaults']['mollie_amount'] = strtolower($mollie_field['elementDefaults']['mollie_amount']);
 	$clean_amount = preg_replace("/[^a-zA-Z0-9.*()\-+\/]+/", '', $mollie_field['elementDefaults']['mollie_amount']);
 	if (empty($clean_amount)) {
-		echo json_encode(array('failed'=>'Invalid / empty amount is not accepted'));
+		echo json_encode(array('failed'=> 'Invalid / empty amount is not accepted'));
 		die();
 	}
 	$amount_fields = preg_split("/[*()\-+\/]/", $clean_amount);
@@ -208,7 +211,6 @@ function formcraft_mollie_trigger($content, $meta){
 			array(
 				'amount'      => $final_amount,
 				'description' => 'ESCRH',
-				// 'redirectUrl' => home_url().'/experimenten?registered&user-email=' . $fields['user_email'],
 				'redirectUrl' => $content['URL'] . '?paymentprocessed',
 				'webhookUrl'  => plugins_url( 'assets/php/webhook.php', __FILE__ ),
 				'metadata'    => array(
@@ -235,13 +237,6 @@ function formcraft_mollie_trigger($content, $meta){
 
 		//REDIRECT WITH JS
 
-
-		/*
-		* Send the customer off to complete the payment.
-		* This request should always be a GET, thus we enforce 303 http response code
-		*/
-		// header("Location: " . $paymentURL, true, 303);
-		// exit;
 	}
 	catch (Mollie_API_Exception $e)
 	{
@@ -259,8 +254,8 @@ function show_payment_notice() {
     if ( !is_admin() && isset($_GET['paymentprocessed'])) { 
 		echo '<div class="infobox">';
 		echo '<span class="closebtn" onclick="this.parentElement.style.display=\'none\';">×</span>';
-		echo '<strong>Thank you!</strong>';
-	   	echo '<p>Your payment is being processed at this moment. We will contact you shortly if anything has gone wrong during the payment process. You may close this page.</p>';
+		echo '<strong>' . __('Thank you!','formcraft') . '</strong>';
+	   	echo '<p>' .  __('Your payment is being processed at this moment. We will contact you shortly if anything has gone wrong during the payment process. You may close this page.','formcraft') . '</p>';
 		echo '</div>';
     }
 }
