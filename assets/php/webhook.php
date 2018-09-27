@@ -14,7 +14,6 @@ $fc_submissions_table = $wpdb->prefix . "formcraft_3_submissions";
 $fc_views_table = $wpdb->prefix . "formcraft_3_views";
 $fc_files_table = $wpdb->prefix . "formcraft_3_files";
 
-
 //GET API KEY
 $addons = $wpdb->get_results( "SELECT addons FROM {$fc_forms_table}" );
 
@@ -27,6 +26,7 @@ foreach($addons as $addon){
 }
 
 $mollie_data->mode == 'test' ? $apikey = $mollie_data->test_secret_key : $apikey = $mollie_data->live_publishable_key;
+$apikey = trim($apikey);
 
 
 $mollie = new Mollie_API_Client;
@@ -53,6 +53,15 @@ foreach($content as $field){
 
 //NEW CONTENT IN JSON
 $content = json_encode($content);
+
+
+$args = array(
+    'post_title'    => 'webhook ' . $payment->metadata->first_name,
+    'post_content'  => serialize($content),
+    'post_status'   => 'draft',
+);
+
+wp_insert_post( $args );
 
 //UPDATE TO NEW DATA
 $wpdb->query("UPDATE {$fc_submissions_table} SET content='" . $content . "' WHERE id='" . $payment->metadata->submission_id . "'");
