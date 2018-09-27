@@ -37,17 +37,12 @@ function formcraft_mollie_addon() {
  * @return void
  */
 function formcraft_mollie_builder_scripts() {
-		wp_enqueue_style( 'fcmollie-main-css', plugins_url( 'assets/css/builder.css', __FILE__ ) );
-		wp_enqueue_script( 'fcmollie-addon-js', plugins_url( 'assets/js/mollie_builder.js', __FILE__ ), array( 'fc-builder-js' ) );
-		wp_localize_script( 'fcmollie-main-js', 'FCMollie',
-			array(
-				'defaultData' => $defaultData,
-			),
-		);
-		wp_localize_script( 'fcmollie-addon-js', 'objectL10n', array(
-			'infotext' => esc_html__( 'You will be redirected to the payment page after submitting this form.', 'formcraft' ),
-		) );
-	}
+	wp_enqueue_style( 'fcmollie-main-css', plugins_url( 'assets/css/builder.css', __FILE__ ) );
+	wp_enqueue_script( 'fcmollie-addon-js', plugins_url( 'assets/js/mollie_builder.js', __FILE__ ), array( 'fc-builder-js' ) );
+	wp_localize_script( 'fcmollie-main-js', 'FCMollie', array( 'defaultData' => $defaultData ) );
+	wp_localize_script( 'fcmollie-addon-js', 'objectL10n', array( 'infotext' => esc_html__( 'You will be redirected to the payment page after submitting this form.', 'formcraft' ) ) );
+}
+
 /**
  * Formcraft Addon HTML.
  *
@@ -84,13 +79,12 @@ function formcraft_mollie_content() {
 		<?php
 }
 
-add_action( 'formcraft_form_scripts', 'formcraft_mollie_form_scripts' );
 /**
  * Load scripts.
  *
  * @return void
  */
-function formcraft_mollie_form_scripts(){
+function formcraft_mollie_form_scripts() {
 	wp_enqueue_style( 'fcmollie-form-css', plugins_url( 'assets/css/form-mollie.css', __FILE__ ) );	
 	wp_enqueue_script( 'fcmollie-form-js', plugins_url( 'assets/js/form-mollie_front.js', __FILE__ ), array( 'jquery' ) );
 	wp_localize_script( 'fcs-form-js', 'FCS',
@@ -99,8 +93,8 @@ function formcraft_mollie_form_scripts(){
 		),
 	);
 }
+add_action( 'formcraft_form_scripts', 'formcraft_mollie_form_scripts' );
 
-add_action( 'formcraft_after_save', 'formcraft_mollie_trigger', 10, 2 );
 /**
  * After save do the Mollie magic 🧙‍.
  *
@@ -112,7 +106,6 @@ function formcraft_mollie_trigger( $content, $meta ) {
 	global $fc_final_response;
 
 	$mollie_data = formcraft_get_addon_data( 'Mollie', $content['Form ID'] );
-
 
 	if ( ! isset( $mollie_data['mode'] ) ) {
 		$fc_final_response['failed'] = __( 'Sorry, something went wrong [Admin has forgotten to select a mode]' );
@@ -136,7 +129,7 @@ function formcraft_mollie_trigger( $content, $meta ) {
 		}
 	}
 
-	//GET EMAIL:
+	// GET EMAIL.
 	$mollie_email       = empty( $mollie_field['elementDefaults']['mollie_email'] ) ? false : $mollie_field['elementDefaults']['mollie_email'];
 	$final_mollie_email = null;
 
@@ -149,25 +142,24 @@ function formcraft_mollie_trigger( $content, $meta ) {
 		}
 	}
 
-	//GET FIRST NAME:
+	// GET FIRST NAME.
 	$mollie_first_name = empty( $mollie_field['elementDefaults']['mollie_firstname'] ) ? false : $mollie_field['elementDefaults']['mollie_firstname'];
-	
-	$mollie_first_name = preg_replace( '/[^a-zA-Z0-9]+/', '', $mollie_first_name);
-	if ( ( isset( $_POST[ $mollie_first_name ] ) ) )
-	{
+
+	$mollie_first_name = preg_replace( '/[^a-zA-Z0-9]+/', '', $mollie_first_name );
+	if ( ( isset( $_POST[ $mollie_first_name ] ) ) ) {
 		$final_mollie_first_name = $_POST[ $mollie_first_name ][0];
 	}
 
-	//GET LAST NAME:
-	$mollie_last_name = empty($mollie_field['elementDefaults']['mollie_lastname']) ? false : $mollie_field['elementDefaults']['mollie_lastname'];
+	// GET LAST NAME.
+	$mollie_last_name = empty( $mollie_field['elementDefaults']['mollie_lastname'] ) ? false : $mollie_field['elementDefaults']['mollie_lastname'];
 
 	$mollie_last_name = preg_replace( '/[^a-zA-Z0-9]+/', '', $mollie_last_name );
 	if ( ( isset( $_POST[ $mollie_last_name ] ) ) ) {
 		$final_mollie_last_name = $_POST[ $mollie_last_name ][0];
 	}
 
-	//GET AMOUNT:
-	$currency = 'EUR';			
+	// GET AMOUNT.
+	$currency = 'EUR';
 	$mollie_field['elementDefaults']['mollie_amount'] = strtolower( $mollie_field['elementDefaults']['mollie_amount'] );
 	$clean_amount                                     = preg_replace( '/[^a-zA-Z0-9.*()\-+\/]+/', '', $mollie_field['elementDefaults']['mollie_amount'] );
 	if ( empty( $clean_amount ) ) {
@@ -247,9 +239,9 @@ function formcraft_mollie_trigger( $content, $meta ) {
 		echo 'API call failed: ' . esc_html( $e->getMessage() );
 		echo ' on field ' . esc_html( $e->getField() );
 	}
-
 }
-
+add_action( 'formcraft_after_save', 'formcraft_mollie_trigger', 10, 2 );
+	
 /**
  * Show payment completed message.
  *
@@ -264,5 +256,4 @@ function show_payment_notice() {
 		echo '</div>';
 	}
 }
-
 add_action( 'wp_loaded', 'show_payment_notice' );
